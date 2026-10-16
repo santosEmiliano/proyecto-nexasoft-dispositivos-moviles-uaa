@@ -105,4 +105,88 @@ void main() {
       expect(gestor.buscar('zzzz'), isEmpty);
     });
   });
+
+  group('BUG-003: el tablero coincide con los datos', () {
+    /// Totales que muestra el tablero, en el orden Pendientes / En proceso / Resueltas.
+    List<int> tablero(GestorIncidencias g) => [
+          g.contar('Pendiente'),
+          g.contar('En proceso'),
+          g.contar('Resuelta'),
+        ];
+
+    /// Totales calculados sobre la lista, sin pasar por contar().
+    List<int> recuento(GestorIncidencias g) => [
+          for (final e in ['Pendiente', 'En proceso', 'Resuelta'])
+            g.incidencias.where((x) => x.estado == e).length,
+        ];
+
+    test('al arrancar muestra 5 / 2 / 3', () async {
+      final g = await abrirApp();
+      expect(tablero(g), [5, 2, 3]);
+    });
+
+    test('Pendiente a Resuelta, Pendientes baja y Resueltas sube', () async {
+      final g = await abrirApp();
+      await g.cambiarEstado('INC-101', 'Resuelta');
+      expect(tablero(g), [4, 2, 4]);
+      expect(tablero(g), recuento(g));
+    });
+
+    test('Resuelta a Pendiente, Pendientes sube y Resueltas baja', () async {
+      final g = await abrirApp();
+      await g.cambiarEstado('INC-104', 'Pendiente');
+      expect(tablero(g), [6, 2, 2]);
+      expect(tablero(g), recuento(g));
+    });
+
+    test('En proceso a Pendiente actualiza los tres contadores', () async {
+      final g = await abrirApp();
+      await g.cambiarEstado('INC-102', 'Pendiente');
+      expect(tablero(g), [6, 1, 3]);
+      expect(tablero(g), recuento(g));
+    });
+
+    test('los tres contadores siempre suman el total de registros', () async {
+      final g = await abrirApp();
+      await g.cambiarEstado('INC-101', 'Resuelta');
+      await g.cambiarEstado('INC-103', 'En proceso');
+      expect(tablero(g).reduce((a, b) => a + b), g.incidencias.length);
+    });
+
+    test('registrar una incidencia nueva suma un Pendiente', () async {
+      final g = await abrirApp();
+      await g.crear(
+          'Título de prueba', 'Descripción', 'Cliente ficticio', 'Redes');
+      expect(tablero(g), [6, 2, 3]);
+      expect(tablero(g), recuento(g));
+    });
+
+    test('tras reiniciar la app el tablero coincide con lo guardado', () async {
+      final sesion1 = await abrirApp();
+      await sesion1.cambiarEstado('INC-101', 'Resuelta');
+      await sesion1.crear(
+          'Título de prueba', 'Descripción', 'Cliente ficticio', 'Redes');
+
+      final sesion2 = await abrirApp();
+      expect(tablero(sesion2), [5, 2, 4]);
+      expect(tablero(sesion2), recuento(sesion2));
+    });
+
+    test('la búsqueda no cambia los totales del tablero', () async {
+      final g = await abrirApp();
+      final antes = tablero(g);
+      expect(g.buscar('wifi').length, 1);
+      expect(tablero(g), antes);
+    });
+
+    test('restablecer la demostración devuelve el tablero a 5 / 2 / 3',
+        () async {
+      final g = await abrirApp();
+      await g.cambiarEstado('INC-101', 'Resuelta');
+      await g.crear(
+          'Título de prueba', 'Descripción', 'Cliente ficticio', 'Redes');
+      await g.reiniciarDemo();
+      expect(tablero(g), [5, 2, 3]);
+    });
+  });
 }
