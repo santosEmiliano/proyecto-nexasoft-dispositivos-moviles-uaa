@@ -56,4 +56,53 @@ void main() {
       expect(sesion2.incidencias.length, 11);
     });
   });
+
+  group('BUG-002: la búsqueda encuentra los registros existentes', () {
+    late GestorIncidencias gestor;
+    Set<String> ids(String consulta) =>
+        gestor.buscar(consulta).map((x) => x.id).toSet();
+
+    setUp(() async {
+      gestor = await abrirApp();
+    });
+
+    test('ignora mayúsculas y minúsculas', () {
+      expect(ids('wifi'), {'INC-102'});
+      expect(ids('WiFi'), {'INC-102'});
+      expect(ids('WIFI'), {'INC-102'});
+    });
+
+    test('busca también en la descripción', () {
+      // «túnel» solo aparece en la descripción de INC-106 (VPN).
+      expect(ids('túnel'), {'INC-106'});
+      expect(ids('TÚNEL'), {'INC-106'});
+    });
+
+    test('ignora los acentos, escriba o no el acento el usuario', () {
+      expect(ids('tunel'), {'INC-106'});
+      expect(ids('TUNEL'), {'INC-106'});
+      expect(ids('túnel'), {'INC-106'});
+      // Con acento en el texto guardado y sin acento en la consulta, y al revés.
+      expect(ids('configuracion'), {'INC-106'});
+      expect(ids('recepcion'), {'INC-102', 'INC-107'});
+    });
+
+    test('combina coincidencias de título y de descripción', () {
+      // "recepción", porque es título de INC-102 y descripción de INC-107.
+      expect(ids('recepción'), {'INC-102', 'INC-107'});
+    });
+
+    test('ignora espacios al inicio y al final de la consulta', () {
+      expect(ids('  wifi  '), {'INC-102'});
+    });
+
+    test('sin texto devuelve todos los registros', () {
+      expect(gestor.buscar('').length, 10);
+      expect(gestor.buscar('   ').length, 10);
+    });
+
+    test('un texto sin coincidencias devuelve una lista vacía', () {
+      expect(gestor.buscar('zzzz'), isEmpty);
+    });
+  });
 }

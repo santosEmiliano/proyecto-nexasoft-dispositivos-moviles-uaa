@@ -1,3 +1,5 @@
+import 'package:diacritic/diacritic.dart';
+
 import '../data/almacen_local.dart';
 import '../model/incidencia.dart';
 
@@ -12,9 +14,17 @@ class GestorIncidencias {
         incidencias.where((x) => x.estado == 'Pendiente').length;
   }
 
+  /// Quita acentos y pasa a minúsculas, para comparar sin distinguirlos.
+  String _normalizar(String texto) => removeDiacritics(texto).toLowerCase();
+
   List<Incidencia> buscar(String texto) {
-    if (texto.trim().isEmpty) return incidencias;
-    return incidencias.where((x) => x.titulo.contains(texto)).toList();
+    final consulta = _normalizar(texto.trim());
+    if (consulta.isEmpty) return incidencias;
+    return incidencias
+        .where((x) =>
+            _normalizar(x.titulo).contains(consulta) ||
+            _normalizar(x.descripcion).contains(consulta))
+        .toList();
   }
 
   Incidencia? porId(String id) {
