@@ -30,11 +30,17 @@ class GestorIncidencias {
   }
 
   Future<void> cambiarEstado(String id, String estado) async {
-    for (var i = 0; i < incidencias.length; i++) {
-      if (incidencias[i].id == id) {
-        incidencias[i].estado = estado;
-        break;
-      }
+    final incidencia = porId(id);
+    if (incidencia == null) return;
+
+    final anterior = incidencia.estado;
+    incidencia.estado = estado;
+    try {
+      await datos.guardar(incidencias);
+    } catch (_) {
+      // Si no se pudo guardar, la lista no debe mostrar un estado que no está en el almacenamiento local
+      incidencia.estado = anterior;
+      rethrow;
     }
   }
 
