@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nexasoft_incidencias/data/almacen_local.dart';
 import 'package:nexasoft_incidencias/services/gestor_incidencias.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
@@ -187,6 +190,115 @@ void main() {
           'Título de prueba', 'Descripción', 'Cliente ficticio', 'Redes');
       await g.reiniciarDemo();
       expect(tablero(g), [5, 2, 3]);
+    });
+  });
+
+  group('FEAT-001: prioridad de las incidencias', () {
+    Future<void> registrar(GestorIncidencias g, {String? prioridad}) {
+      return prioridad == null
+          ? g.crear('Título de prueba', 'Descripción', 'Cliente ficticio', 'Redes')
+          : g.crear('Título de prueba', 'Descripción', 'Cliente ficticio', 'Redes',
+              prioridad: prioridad);
+    }
+
+    test('las incidencias de la semilla se abren con prioridad Media', () async {
+      final g = await abrirApp();
+      expect(g.incidencias.map((x) => x.prioridad).toSet(), {'Media'});
+    });
+
+    test('datos guardados antes de existir la prioridad se abren con Media',
+        () async {
+      final almacen = AlmacenLocal();
+      await almacen.prefs.setString(
+        almacen.clave,
+        jsonEncode([
+          {
+            'id': 'INC-OLD',
+            'titulo': 'Registro antiguo',
+            'descripcion': 'Guardado sin prioridad',
+            'cliente': 'Cliente ficticio',
+            'categoria': 'Redes',
+            'estado': 'En proceso',
+            'fecha': '2026-09-01',
+          }
+        ]),
+      );
+
+      final g = await abrirApp();
+      expect(g.incidencias.single.prioridad, 'Media');
+      expect(g.incidencias.single.estado, 'En proceso');
+    });
+
+    test('una incidencia nueva sin prioridad indicada queda en Media', () async {
+      final g = await abrirApp();
+      await registrar(g);
+      expect(g.incidencias.first.prioridad, 'Media');
+    });
+
+    test('una incidencia nueva con prioridad Alta la conserva tras reiniciar',
+        () async {
+      final sesion1 = await abrirApp();
+      await registrar(sesion1, prioridad: 'Alta');
+      final id = sesion1.incidencias.first.id;
+
+      final sesion2 = await abrirApp();
+      expect(sesion2.porId(id)!.prioridad, 'Alta');
+    });
+
+    test('registrar con una prioridad no aprobada se rechaza', () async {
+      final g = await abrirApp();
+      await expectLater(registrar(g, prioridad: 'Urgente'), throwsArgumentError);
+      expect(g.incidencias.length, 10);
+    });
+
+    test('cambiar la prioridad se conserva tras reiniciar', () async {
+      final sesion1 = await abrirApp();
+      await sesion1.cambiarPrioridad('INC-101', 'Alta');
+      expect(sesion1.porId('INC-101')!.prioridad, 'Alta');
+
+      final sesion2 = await abrirApp();
+      expect(sesion2.porId('INC-101')!.prioridad, 'Alta');
+    });
+
+    test('cambiar la prioridad de una incidencia no altera las demás',
+        () async {
+      final g = await abrirApp();
+      await g.cambiarPrioridad('INC-101', 'Baja');
+
+      final sesion2 = await abrirApp();
+      for (final x in sesion2.incidencias) {
+        expect(x.prioridad, x.id == 'INC-101' ? 'Baja' : 'Media',
+            reason: 'prioridad de ${x.id}');
+      }
+    });
+
+    test('cambiar a una prioridad no aprobada se rechaza y no modifica nada',
+        () async {
+      final g = await abrirApp();
+      await expectLater(
+          g.cambiarPrioridad('INC-101', 'Urgente'), throwsArgumentError);
+      expect(g.porId('INC-101')!.prioridad, 'Media');
+
+      final sesion2 = await abrirApp();
+      expect(sesion2.porId('INC-101')!.prioridad, 'Media');
+    });
+
+    test('cambiar el estado no pierde la prioridad', () async {
+      final sesion1 = await abrirApp();
+      await sesion1.cambiarPrioridad('INC-101', 'Alta');
+      await sesion1.cambiarEstado('INC-101', 'Resuelta');
+
+      final sesion2 = await abrirApp();
+      expect(sesion2.porId('INC-101')!.prioridad, 'Alta');
+      expect(sesion2.porId('INC-101')!.estado, 'Resuelta');
+    });
+
+    test('cambiar la prioridad no altera el estado ni el tablero', () async {
+      final g = await abrirApp();
+      await g.cambiarPrioridad('INC-101', 'Alta');
+      expect(g.porId('INC-101')!.estado, 'Pendiente');
+      expect([g.contar('Pendiente'), g.contar('En proceso'), g.contar('Resuelta')],
+          [5, 2, 3]);
     });
   });
 }
