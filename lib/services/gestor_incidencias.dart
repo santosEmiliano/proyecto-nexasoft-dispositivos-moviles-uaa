@@ -69,12 +69,13 @@ class GestorIncidencias {
 
   void _validarPrioridad(String prioridad) {
     if (!Incidencia.prioridades.contains(prioridad)) {
-      throw ArgumentError.value(prioridad, 'prioridad', 'Debe ser Baja, Media o Alta');
+      throw ArgumentError.value(
+          prioridad, 'prioridad', 'Debe ser Baja, Media o Alta');
     }
   }
 
-  Future<void> crear(String titulo, String descripcion, String cliente,
-      String categoria,
+  Future<void> crear(
+      String titulo, String descripcion, String cliente, String categoria,
       {String prioridad = Incidencia.prioridadPorDefecto}) async {
     _validarPrioridad(prioridad);
     final nuevo = Incidencia(
