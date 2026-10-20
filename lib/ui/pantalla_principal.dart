@@ -16,11 +16,54 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   bool cargando = true;
   String? error;
   String busqueda = '';
+  String estadoFiltro = GestorIncidencias.todosLosEstados;
+  String prioridadFiltro = GestorIncidencias.todasLasPrioridades;
+  final buscador = TextEditingController();
+
+  bool get hayConsulta =>
+      busqueda.isNotEmpty ||
+      estadoFiltro != GestorIncidencias.todosLosEstados ||
+      prioridadFiltro != GestorIncidencias.todasLasPrioridades;
 
   @override
   void initState() {
     super.initState();
     cargar();
+  }
+
+  @override
+  void dispose() {
+    buscador.dispose();
+    super.dispose();
+  }
+
+  void limpiarConsulta() {
+    buscador.clear();
+    setState(() {
+      busqueda = '';
+      estadoFiltro = GestorIncidencias.todosLosEstados;
+      prioridadFiltro = GestorIncidencias.todasLasPrioridades;
+    });
+  }
+
+  Widget selectorFiltro(String etiqueta, String valor, List<String> opciones,
+      ValueChanged<String> alCambiar) {
+    return Expanded(
+      child: DropdownButtonFormField<String>(
+        value: valor,
+        decoration: InputDecoration(
+          labelText: etiqueta,
+          border: const OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: opciones
+            .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+            .toList(),
+        onChanged: (v) {
+          if (v != null) alCambiar(v);
+        },
+      ),
+    );
   }
 
   Future<void> cargar() async {
@@ -90,7 +133,8 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
 
   @override
   Widget build(BuildContext context) {
-    final items = g.buscar(busqueda);
+    final items =
+        g.buscar(busqueda, estado: estadoFiltro, prioridad: prioridadFiltro);
     return Scaffold(
       appBar: AppBar(
         title: const Text('NexaSoft | Incidencias'),
@@ -157,6 +201,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 5),
                           child: TextField(
+                            controller: buscador,
                             decoration: const InputDecoration(
                               labelText: 'Buscar incidencias',
                               hintText: 'Ejemplo: WiFi, correo, pantalla',
@@ -167,15 +212,51 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text('${items.length} registros', style: const TextStyle(color: Colors.black54)),
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 5),
+                          child: Row(children: [
+                            selectorFiltro('Estado', estadoFiltro,
+                                [GestorIncidencias.todosLosEstados, ...Incidencia.estados],
+                                (v) => setState(() => estadoFiltro = v)),
+                            const SizedBox(width: 12),
+                            selectorFiltro('Prioridad', prioridadFiltro,
+                                [GestorIncidencias.todasLasPrioridades, ...Incidencia.prioridades],
+                                (v) => setState(() => prioridadFiltro = v)),
+                          ]),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(children: [
+                            Text('${items.length} registros', style: const TextStyle(color: Colors.black54)),
+                            const Spacer(),
+                            TextButton.icon(
+                              onPressed: hayConsulta ? limpiarConsulta : null,
+                              icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
+                              label: const Text('Limpiar'),
+                            ),
+                          ]),
                         ),
                         Expanded(
                           child: items.isEmpty
-                              ? const Center(child: Text('No se encontraron incidencias'))
+                              ? Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(24),
+                                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                      Text(
+                                        hayConsulta
+                                            ? 'Ninguna incidencia cumple la búsqueda y los filtros activos.'
+                                            : 'No hay incidencias registradas.',
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      if (hayConsulta) ...[
+                                        const SizedBox(height: 12),
+                                        FilledButton.tonal(
+                                          onPressed: limpiarConsulta,
+                                          child: const Text('Limpiar búsqueda y filtros'),
+                                        ),
+                                      ],
+                                    ]),
+                                  ),
+                                )
                               : ListView.builder(
                                   padding: const EdgeInsets.only(left: 12, right: 12, bottom: 100),
                                   itemCount: items.length,

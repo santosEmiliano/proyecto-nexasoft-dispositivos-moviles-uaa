@@ -4,24 +4,9 @@ import 'package:nexasoft_incidencias/main.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
-Future<void> esperar(WidgetTester tester) async {
-  for (var i = 0; i < 20; i++) {
-    await tester
-        .runAsync(() => Future.delayed(const Duration(milliseconds: 50)));
-    await tester.pump();
-    if (find.byType(CircularProgressIndicator).evaluate().isEmpty) break;
-  }
-  await asentar(tester);
-}
+import 'ayuda_ui.dart';
 
-/// Deja terminar las transiciones y los menús desplegables.
-Future<void> asentar(WidgetTester tester) async {
-  await tester.pump(const Duration(milliseconds: 400));
-  await tester.pump(const Duration(milliseconds: 400));
-}
-
-Finder selectorPrioridad(String valorActual) =>
-    find.widgetWithText(DropdownButtonFormField<String>, valorActual);
+Finder selectorPrioridad(String valorActual) => desplegable(valorActual);
 
 Finder enLista(String prioridad) =>
     find.textContaining('Prioridad $prioridad', findRichText: true);

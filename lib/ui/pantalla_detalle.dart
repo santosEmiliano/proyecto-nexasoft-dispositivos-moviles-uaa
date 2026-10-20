@@ -81,7 +81,7 @@ class _PantallaDetalleState extends State<PantallaDetalle> {
                     DropdownButtonFormField<String>(
                       value: item.estado,
                       decoration: const InputDecoration(labelText: 'Estado actual', border: OutlineInputBorder()),
-                      items: ['Pendiente', 'En proceso', 'Resuelta']
+                      items: Incidencia.estados
                           .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                           .toList(),
                       onChanged: guardando ? null : cambiar,
