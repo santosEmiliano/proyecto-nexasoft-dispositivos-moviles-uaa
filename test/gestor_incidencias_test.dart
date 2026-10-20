@@ -301,4 +301,85 @@ void main() {
           [5, 2, 3]);
     });
   });
+
+  group('FEAT-002: filtros combinables', () {
+    // Estados de la semilla: Pendiente 101, 103, 105, 108, 110; En proceso 102, 106;
+    // Resuelta 104, 107, 109. Se asignan prioridades para tener todas las combinaciones.
+    late GestorIncidencias g;
+
+    Set<String> ids(String texto, {String? estado, String? prioridad}) => g
+        .buscar(texto, estado: estado, prioridad: prioridad)
+        .map((x) => x.id)
+        .toSet();
+
+    setUp(() async {
+      g = await abrirApp();
+      for (final id in ['INC-101', 'INC-102', 'INC-103']) {
+        await g.cambiarPrioridad(id, 'Alta');
+      }
+      for (final id in ['INC-104', 'INC-105']) {
+        await g.cambiarPrioridad(id, 'Baja');
+      }
+    });
+
+    test('filtrar solo por estado', () {
+      expect(ids('', estado: 'Pendiente'),
+          {'INC-101', 'INC-103', 'INC-105', 'INC-108', 'INC-110'});
+      expect(ids('', estado: 'En proceso'), {'INC-102', 'INC-106'});
+      expect(ids('', estado: 'Resuelta'), {'INC-104', 'INC-107', 'INC-109'});
+    });
+
+    test('filtrar solo por prioridad', () {
+      expect(ids('', prioridad: 'Alta'), {'INC-101', 'INC-102', 'INC-103'});
+      expect(ids('', prioridad: 'Baja'), {'INC-104', 'INC-105'});
+      expect(ids('', prioridad: 'Media'),
+          {'INC-106', 'INC-107', 'INC-108', 'INC-109', 'INC-110'});
+    });
+
+    test('estado y prioridad se aplican juntos', () {
+      expect(ids('', estado: 'Pendiente', prioridad: 'Alta'),
+          {'INC-101', 'INC-103'});
+      expect(ids('', estado: 'En proceso', prioridad: 'Alta'), {'INC-102'});
+      expect(ids('', estado: 'Resuelta', prioridad: 'Alta'), isEmpty);
+    });
+
+    test('texto, estado y prioridad se aplican juntos', () {
+      expect(ids('pantalla'), {'INC-103', 'INC-110'});
+      expect(ids('pantalla', estado: 'Pendiente'), {'INC-103', 'INC-110'});
+      expect(ids('pantalla', estado: 'Pendiente', prioridad: 'Alta'),
+          {'INC-103'});
+      expect(ids('pantalla', prioridad: 'Media'), {'INC-110'});
+      expect(ids('wifi', estado: 'Pendiente'), isEmpty);
+    });
+
+    test('con el texto vacío o en blanco quedan los que cumplen los filtros',
+        () {
+      expect(ids('', estado: 'Resuelta').length, 3);
+      expect(ids('   ', estado: 'Resuelta', prioridad: 'Baja'), {'INC-104'});
+    });
+
+    test('sin filtros, o con Todos y Todas, no se descarta ningún registro',
+        () {
+      expect(ids('').length, 10);
+      expect(ids('', estado: 'Todos', prioridad: 'Todas').length, 10);
+      expect(ids('wifi', estado: 'Todos', prioridad: 'Todas'), {'INC-102'});
+    });
+
+    test('los filtros no cambian los totales del tablero', () {
+      g.buscar('', estado: 'Resuelta', prioridad: 'Baja');
+      expect([g.contar('Pendiente'), g.contar('En proceso'), g.contar('Resuelta')],
+          [5, 2, 3]);
+    });
+
+    test('el resultado sigue los cambios de estado y de prioridad', () async {
+      expect(ids('', estado: 'Pendiente', prioridad: 'Alta'),
+          {'INC-101', 'INC-103'});
+
+      await g.cambiarEstado('INC-101', 'Resuelta');
+      await g.cambiarPrioridad('INC-105', 'Alta');
+
+      expect(ids('', estado: 'Pendiente', prioridad: 'Alta'),
+          {'INC-103', 'INC-105'});
+    });
+  });
 }

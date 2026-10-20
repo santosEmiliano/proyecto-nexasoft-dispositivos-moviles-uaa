@@ -14,14 +14,24 @@ class GestorIncidencias {
   /// Quita acentos y pasa a minúsculas, para comparar sin distinguirlos.
   String _normalizar(String texto) => removeDiacritics(texto).toLowerCase();
 
-  List<Incidencia> buscar(String texto) {
+  /// Valores del filtro que serían lo mismo que no filtrar.
+  static const todosLosEstados = 'Todos';
+  static const todasLasPrioridades = 'Todas';
+
+  /// Aplica al mismo tiempo el filtro de texto, estado y prioridad.
+  /// Un filtro nulo o con valor de "Todos" o "Todas" no filtra nada.
+  List<Incidencia> buscar(String texto, {String? estado, String? prioridad}) {
     final consulta = _normalizar(texto.trim());
-    if (consulta.isEmpty) return incidencias;
-    return incidencias
-        .where((x) =>
-            _normalizar(x.titulo).contains(consulta) ||
-            _normalizar(x.descripcion).contains(consulta))
-        .toList();
+    final porEstado = estado != null && estado != todosLosEstados;
+    final porPrioridad = prioridad != null && prioridad != todasLasPrioridades;
+
+    return incidencias.where((x) {
+      if (porEstado && x.estado != estado) return false;
+      if (porPrioridad && x.prioridad != prioridad) return false;
+      return consulta.isEmpty ||
+          _normalizar(x.titulo).contains(consulta) ||
+          _normalizar(x.descripcion).contains(consulta);
+    }).toList();
   }
 
   Incidencia? porId(String id) {
