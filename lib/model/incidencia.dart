@@ -1,4 +1,5 @@
 class Incidencia {
+  static const estados = ['Pendiente', 'En proceso', 'Resuelta'];
   static const prioridades = ['Baja', 'Media', 'Alta'];
   static const prioridadPorDefecto = 'Media';
 
